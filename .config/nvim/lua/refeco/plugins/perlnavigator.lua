@@ -18,7 +18,7 @@ end
 return {
     'bscan/PerlNavigator',
     config = function()
-        require('lspconfig').perlnavigator.setup {
+        vim.lsp.config('perlnavigator', {
             settings = {
                 perlnavigator = {
                     perlPath = 'perl',
@@ -28,6 +28,6 @@ return {
                     perlcriticEnabled = true,
                 }
             }
-        }
+        })
     end
 }

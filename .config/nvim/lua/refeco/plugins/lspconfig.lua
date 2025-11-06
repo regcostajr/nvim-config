@@ -1,47 +1,66 @@
+local ensure_installed = require("refeco.utils.mason-ensure-installed")
+
 return {
-    'neovim/nvim-lspconfig',
-    cmd = { 'LspInfo', 'LspInstall', 'LspStart' },
-    event = { 'BufReadPre', 'BufNewFile' },
-    dependencies = {
-        { 'hrsh7th/cmp-nvim-lsp' },
-        { 'williamboman/mason-lspconfig.nvim' },
-    },
-    init = function()
-        -- Reserve a space in the gutter
-        -- This will avoid an annoying layout shift in the screen
-        vim.opt.signcolumn = 'yes'
-    end,
-    config = function()
-        -- Setup mason first
-        require('mason').setup({
-            ensure_installed = {
-                "goimports",  -- Add goimports here instead
-            }
-        })
+	"neovim/nvim-lspconfig",
+	cmd = { "LspInfo", "LspInstall", "LspStart" },
+	event = { "BufReadPre", "BufNewFile" },
+	dependencies = {
+		-- Config
+		"mason-org/mason.nvim",
+		{
+			"williamboman/mason-lspconfig.nvim",
+			opts = {
+				ensure_installed = ensure_installed.lsp,
+				automatic_installation = true,
+			},
+			config = function(_, opts)
+				local msn = require("mason-lspconfig")
+				msn.setup(opts)
+			end,
+		},
+	},
+	init = function()
+		-- Reserve a space in the gutter
+		-- This will avoid an annoying layout shift in the screen
+		vim.opt.signcolumn = "yes"
+	end,
+	config = function(_, opts)
+		local mason_registry = require("mason-registry")
 
-        local lsp_defaults = require('lspconfig').util.default_config
+		-- Mason plugins manual ensure installed
+		for _, name in ipairs(ensure_installed.plugins) do
+			local pkg = mason_registry.get_package(name)
+			if not pkg:is_installed() then
+				pkg:install()
+			end
+		end
 
-        -- Add cmp_nvim_lsp capabilities settings to lspconfig
-        -- This should be executed before you configure any language server
-        lsp_defaults.capabilities = vim.tbl_deep_extend(
-            'force',
-            lsp_defaults.capabilities,
-            require('cmp_nvim_lsp').default_capabilities()
-        )
+		-- Capabilities
+		local has_cmp, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
+		local capabilities = vim.tbl_deep_extend(
+			"force",
+			{},
+			vim.lsp.protocol.make_client_capabilities(),
+			has_cmp and cmp_nvim_lsp.default_capabilities() or {},
+			opts.capabilities or {}
+		)
 
-        require('mason-lspconfig').setup({
-            ensure_installed = {
-                'perlnavigator',
-                'lua_ls',
-                'gopls',
-            },
-            handlers = {
-                -- this first function is the "default handler"
-                -- it applies to every language server without a "custom handler"
-                function(server_name)
-                    require('lspconfig')[server_name].setup({})
-                end,
-            }
-        })
-    end
+		local handlers = {}
+
+		local servers = ensure_installed.lsp
+
+		if #servers > 0 then
+			for _, server in ipairs(servers) do
+				local ok, custom_opts = pcall(require, "plugins.lsp.settings." .. server)
+				local server_opts = vim.tbl_deep_extend(
+					"force",
+					{ handlers = handlers, capabilities = vim.deepcopy(capabilities) },
+					ok and custom_opts or {}
+				)
+
+				vim.lsp.config[server] = server_opts
+				vim.lsp.enable(vim.lsp.config[server])
+			end
+		end
+	end,
 }
