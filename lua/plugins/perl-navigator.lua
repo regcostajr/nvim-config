@@ -16,18 +16,26 @@ if vim.fn.filereadable(cwd .. critic) == 1 then
 end
 
 return {
-  "bscan/PerlNavigator",
-  config = function()
-    vim.lsp.config("perlnavigator", {
-      settings = {
+  {
+    "bscan/PerlNavigator",
+    ft = { "perl" },
+  },
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      servers = {
         perlnavigator = {
-          perlPath = "perl",
-          enableWarnings = true,
-          perltidyProfile = use_tidy,
-          perlcriticProfile = use_critic,
-          perlcriticEnabled = true,
+          settings = {
+            perlnavigator = {
+              perlPath = "perl",
+              enableWarnings = true,
+              perltidyProfile = use_tidy,
+              perlcriticProfile = use_critic,
+              perlcriticEnabled = true,
+            },
+          },
         },
       },
-    })
-  end,
+    },
+  },
 }
